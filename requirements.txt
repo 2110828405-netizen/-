@@ -1,0 +1,20 @@
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torchaudio==2.6.0+cu124
+transformers==4.57.1
+pillow==12.0.0
+numpy==2.3.5
+faiss-cpu==1.13.0
+tqdm==4.67.1
+
+# Web服务器
+flask==3.1.2
+flask-sqlalchemy==3.1.1 # Flask的SQLAlchemy扩展
+
+# 爬虫
+requests==2.32.5
+beautifulsoup4==4.14.2
+
+# 环境变量管理
+python-dotenv==1.2.1
+Werkzeug==3.1.3

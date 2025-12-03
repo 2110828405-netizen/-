@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片相似度比对平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Arial", "微软雅黑", sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 50px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background-color: #f8f9fa;
+            border-color: #0056b3;
+        }
+        .upload-area input {
+            display: none;
+        }
+        .upload-area i {
+            font-size: 50px;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 auto;
+            display: block;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        .result-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .image-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .image-card {
+            width: 48%;
+            text-align: center;
+        }
+        .image-card img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        .image-card p {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #666;
+        }
+        .similarity {
+            text-align: center;
+            font-size: 24px;
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+    <!-- 引入图标库（方便显示上传图标） -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📷 图片相似度比对平台</h1>
+
+        <!-- 上传区域 -->
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="imageUpload" accept="image/*">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <h3>点击或拖拽图片到此处上传</h3>
+            <p>支持 JPG、PNG、WebP 等格式</p>
+            <div id="preview" style="margin-top: 20px; display: none;">
+                <img id="previewImg" style="max-width: 200px; max-height: 200px;">
+            </div>
+        </div>
+
+        <!-- 比对按钮 -->
+        <button class="btn" id="compareBtn" disabled>开始比对</button>
+
+        <!-- 加载中提示 -->
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #007bff;"></i>
+            <p>正在比对中，请稍候...</p>
+        </div>
+
+        <!-- 结果展示区域 -->
+        <div class="results" id="results">
+            <h2 class="result-title">比对结果</h2>
+            <div class="similarity" id="similarity">相似度：<span>0.00</span>%</div>
+
+            <div class="image-group">
+                <div class="image-card">
+                    <h3>你的上传图片</h3>
+                    <img id="userImage" alt="用户上传图片">
+                </div>
+                <div class="image-card">
+                    <h3>最相似图片（来自服务器）</h3>
+                    <img id="similarImage" alt="最相似图片">
+                    <p id="similarImageInfo">类别：未知 | 来源：Pexels</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>服务器已缓存 100+ 张图片 | 基于 DINO-V2 模型实现</p>
+        </div>
+    </div>
+
+    <script>
+        // 获取页面元素
+        const uploadArea = document.getElementById('uploadArea');
+        const imageUpload = document.getElementById('imageUpload');
+        const preview = document.getElementById('preview');
+        const previewImg = document.getElementById('previewImg');
+        const compareBtn = document.getElementById('compareBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const similarity = document.getElementById('similarity');
+        const userImage = document.getElementById('userImage');
+        const similarImage = document.getElementById('similarImage');
+        const similarImageInfo = document.getElementById('similarImageInfo');
+
+        // 上传区域点击触发文件选择
+        uploadArea.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        // 拖拽功能
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#e9f5ff';
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.backgroundColor = 'white';
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = 'white';
+            if (e.dataTransfer.files.length > 0) {
+                imageUpload.files = e.dataTransfer.files;
+                previewImage(e.dataTransfer.files[0]);
+            }
+        });
+
+        // 预览上传的图片
+        imageUpload.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                previewImage(e.target.files[0]);
+            }
+        });
+
+        // 预览图片函数
+        function previewImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                userImage.src = e.target.result;
+                preview.style.display = 'block';
+                compareBtn.disabled = false; // 启用比对按钮
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 比对按钮点击事件
+        compareBtn.addEventListener('click', () => {
+            const file = imageUpload.files[0];
+            if (!file) return;
+
+            // 显示加载中，隐藏结果
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            // 构建FormData（上传图片）
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('top_k', 1); // 只返回最相似的1张
+
+            // 调用后端比对接口
+            fetch('/api/search', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.results && data.results.length > 0) {
+                    const result = data.results[0];
+                    // 显示相似度
+                    const similarityPercent = result.similarity_percent.toFixed(2);
+                    similarity.innerHTML = `相似度：<span>${similarityPercent}</span>%`;
+
+                    // 构建图片URL
+                    const imageUrl = `/api/images/${result.image_id}?t=${Date.now()}`; // 添加时间戳避免缓存
+
+                    // 显示最相似图片
+                    similarImage.src = imageUrl;
+                    similarImage.onload = function() {
+                        console.log('相似图片加载成功:', imageUrl);
+                    };
+                    similarImage.onerror = function() {
+                        console.error('相似图片加载失败:', imageUrl);
+                        // 尝试从原始路径加载
+                        const relativePath = result.path;
+                        similarImage.src = relativePath;
+                        console.log('尝试从相对路径加载:', relativePath);
+                    };
+
+                    // 获取图片类别信息
+                    const pathStr = result.path;
+                    // 处理两种路径分隔符
+                    const normalizedPath = pathStr.replace(/\\/g, '/');  // 将反斜杠转为正斜杠
+                    const pathParts = normalizedPath.split('/');
+                    const category = pathParts.length > 2 ? pathParts[pathParts.length - 2] : '未知';
+                    similarImageInfo.innerHTML = `类别：${category} | 来源：Pexels`;
+
+                    // 显示结果区域
+                    results.style.display = 'block';
+
+                    // 调试信息
+                    console.log('搜索结果:', result);
+                    console.log('图片URL:', imageUrl);
+
+                } else {
+                    alert('未找到相似图片！');
+                    console.log('搜索结果为空:', data);
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                console.error('比对失败：', error);
+                alert('比对失败，请重试！');
+            });
+        });
+    </script>
+</body>
+</html>
